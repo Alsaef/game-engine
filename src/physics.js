@@ -162,52 +162,82 @@ class PhysicsEngine {
   moveAndCollide(player, dt) {
     const halfW = PLAYER_WIDTH / 2;
     const halfH = PLAYER_HEIGHT / 2;
+    const prevX = player.x;
+    const prevY = player.y;
 
-    // 1. Move X with vertical skin inset to prevent floor collisions when walking on platforms
+    // 1. Horizontal movement & lateral rock/cavern boundary collisions
     player.x += player.vx * dt;
     let playerBoxX = {
       x: player.x - halfW,
-      y: player.y - halfH + 4, // inset 4px from top and bottom so standing on a platform never triggers lateral wall collision
+      y: player.y - halfH + 4, // inset 4px from top and bottom
       w: PLAYER_WIDTH,
       h: PLAYER_HEIGHT - 8,
     };
 
     for (const plat of this.map.platforms) {
-      if (checkAABB(playerBoxX, plat)) {
-        if (player.vx > 0) {
-          player.x = plat.x - halfW;
-        } else if (player.vx < 0) {
-          player.x = plat.x + plat.w + halfW;
+      // Only solid rock cavern walls block player horizontally
+      // (metal catwalks & floating zero-g crates do not obstruct lateral movement)
+      if (plat.type === 'rock' || plat.type === 'ground') {
+        if (checkAABB(playerBoxX, plat)) {
+          if (player.vx > 0) {
+            player.x = plat.x - halfW;
+          } else if (player.vx < 0) {
+            player.x = plat.x + plat.w + halfW;
+          }
+          player.vx = 0;
+          break;
         }
-        player.vx = 0;
-        break;
       }
     }
 
-    // 2. Move Y
+    // 2. Vertical movement & platform collisions
     player.y += player.vy * dt;
-    let playerBoxY = {
-      x: player.x - halfW,
-      y: player.y - halfH,
-      w: PLAYER_WIDTH,
-      h: PLAYER_HEIGHT,
-    };
-
     player.isOnGround = false;
 
     for (const plat of this.map.platforms) {
-      if (checkAABB(playerBoxY, plat)) {
-        if (player.vy >= 0) {
-          // Landing on top of platform or crate (feet rest precisely on plat.y)
-          player.y = plat.y - halfH;
-          player.vy = 0;
-          player.isOnGround = true;
-          break;
-        } else if (player.vy < 0) {
-          // Hitting head on ceiling/bottom
-          player.y = plat.y + plat.h + halfH;
-          player.vy = 0;
-          break;
+      if (plat.type === 'crate') {
+        // Floating crates drifting in zero-g do not act as solid ground floors
+        continue;
+      }
+
+      if (plat.type === 'rock') {
+        // Solid rock boundaries (e.g. cavern ceiling)
+        const playerBoxY = {
+          x: player.x - halfW + 2,
+          y: player.y - halfH,
+          w: PLAYER_WIDTH - 4,
+          h: PLAYER_HEIGHT,
+        };
+        if (checkAABB(playerBoxY, plat)) {
+          if (player.vy < 0) {
+            // Hitting ceiling
+            player.y = plat.y + plat.h + halfH;
+            player.vy = 0;
+            break;
+          }
+        }
+      } else if (plat.type === 'ground' || plat.type === 'metal') {
+        // Semi-solid / One-way platform surface (Mini Militia style):
+        // Only land if moving downward or standing on top, and feet were at or above the deck
+        const playerLeft = player.x - halfW + 4;
+        const playerRight = player.x + halfW - 4;
+        const platLeft = plat.x;
+        const platRight = plat.x + plat.w;
+
+        // Check horizontal overlap with platform deck
+        if (playerRight > platLeft && playerLeft < platRight) {
+          const feetPrev = prevY + halfH;
+          const feetCurrent = player.y + halfH;
+          const surfaceY = plat.y;
+
+          // If falling/landing (vy >= 0) and feet were above or at the platform surface
+          // (allowing a small step-up tolerance so walking smoothly across platforms works)
+          if (player.vy >= 0 && feetPrev <= surfaceY + 14 && feetCurrent >= surfaceY - 2) {
+            player.y = surfaceY - halfH;
+            player.vy = 0;
+            player.isOnGround = true;
+            break;
+          }
         }
       }
     }
