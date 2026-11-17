@@ -286,6 +286,9 @@ class PhysicsEngine {
         }
       }
       if (hitPlatform) {
+        if (b.weaponType === 'ROCKET') {
+          this.triggerExplosion(b.x, b.y, b.radius || 135, b.damage || 90, b.ownerId, 'ROCKET', players, onKill, onHit, onExplode);
+        }
         bullets.splice(i, 1);
         continue;
       }
@@ -304,6 +307,12 @@ class PhysicsEngine {
 
         if (checkAABB(bPoint, pBox)) {
           hitPlayer = true;
+          if (b.weaponType === 'ROCKET') {
+            this.triggerExplosion(b.x, b.y, b.radius || 135, b.damage || 90, b.ownerId, 'ROCKET', players, onKill, onHit, onExplode);
+            bullets.splice(i, 1);
+            break;
+          }
+
           const actualDamage = b.isBot ? Math.max(6, Math.round(b.damage * 0.65)) : b.damage;
           p.health -= actualDamage;
           p.lastDamageTime = Date.now();
@@ -370,60 +379,63 @@ class PhysicsEngine {
 
       // Grenade explosion trigger
       if (g.fuse <= 0) {
-        onExplode({
-          x: g.x,
-          y: g.y,
-          radius: GRENADE_STATS.radius,
+        this.triggerExplosion(g.x, g.y, GRENADE_STATS.radius, GRENADE_STATS.damage, g.ownerId, 'GRENADE', players, onKill, onHit, onExplode);
+        grenades.splice(i, 1);
+      }
+    }
+  }
+
+  // Common AoE explosion trigger for Grenades and Rocket Launcher
+  triggerExplosion(x, y, radius, baseDamage, ownerId, weaponName, players, onKill, onHit, onExplode) {
+    onExplode({
+      x,
+      y,
+      radius,
+    });
+
+    for (const [id, p] of Object.entries(players)) {
+      if (p.isDead) continue;
+      const dist = distance(x, y, p.x, p.y);
+      if (dist <= radius) {
+        const falloff = 1 - dist / radius;
+        const dmg = Math.round(baseDamage * falloff);
+        p.health -= dmg;
+        p.lastDamageTime = Date.now();
+        p.isRegenerating = false;
+
+        // Knockback impulse
+        const angle = Math.atan2(p.y - y, p.x - x);
+        p.vx += Math.cos(angle) * 480 * falloff;
+        p.vy += Math.sin(angle) * 480 * falloff;
+
+        onHit({
+          x: p.x,
+          y: p.y,
+          type: 'explosion',
+          damage: dmg,
+          targetId: id,
         });
 
-        // Damage players in radius
-        for (const [id, p] of Object.entries(players)) {
-          if (p.isDead) continue;
-          const dist = distance(g.x, g.y, p.x, p.y);
-          if (dist <= GRENADE_STATS.radius) {
-            const falloff = 1 - dist / GRENADE_STATS.radius;
-            const dmg = Math.round(GRENADE_STATS.damage * falloff);
-            p.health -= dmg;
-            p.lastDamageTime = Date.now();
-            p.isRegenerating = false;
+        if (p.health <= 0) {
+          p.health = 0;
+          p.isDead = true;
+          p.respawnTimer = RESPAWN_DELAY;
+          p.deaths = (p.deaths || 0) + 1;
 
-            // Knockback physics impulse
-            const angle = Math.atan2(p.y - g.y, p.x - g.x);
-            p.vx += Math.cos(angle) * 450 * falloff;
-            p.vy += Math.sin(angle) * 450 * falloff;
-
-            onHit({
-              x: p.x,
-              y: p.y,
-              type: 'explosion',
-              damage: dmg,
-              targetId: id,
-            });
-
-            if (p.health <= 0) {
-              p.health = 0;
-              p.isDead = true;
-              p.respawnTimer = RESPAWN_DELAY;
-              p.deaths = (p.deaths || 0) + 1;
-
-              const killer = players[g.ownerId];
-              if (killer) {
-                killer.kills = (killer.kills || 0) + 1;
-                killer.score = (killer.score || 0) + 150;
-              }
-
-              onKill({
-                killerId: g.ownerId,
-                killerName: killer ? killer.name : 'Grenade',
-                victimId: id,
-                victimName: p.name,
-                weapon: 'GRENADE',
-              });
-            }
+          const killer = players[ownerId];
+          if (killer) {
+            killer.kills = (killer.kills || 0) + 1;
+            killer.score = (killer.score || 0) + 150;
           }
-        }
 
-        grenades.splice(i, 1);
+          onKill({
+            killerId: ownerId,
+            killerName: killer ? killer.name : weaponName,
+            victimId: id,
+            victimName: p.name,
+            weapon: weaponName,
+          });
+        }
       }
     }
   }
@@ -458,7 +470,7 @@ class PhysicsEngine {
             p.fuel = MAX_FUEL;
             p.outOfFuel = false;
             collected = true;
-          } else if (['RIFLE', 'SMG', 'SHOTGUN', 'SNIPER', 'PISTOL', 'LASER'].includes(pk.type)) {
+          } else if (['RIFLE', 'SMG', 'SHOTGUN', 'SNIPER', 'PISTOL', 'LASER', 'ROCKET'].includes(pk.type)) {
             p.weapon = pk.type;
             const wpn = WEAPONS[pk.type];
             p.ammo = wpn ? wpn.maxAmmo : 30;

@@ -80,6 +80,7 @@ const MAP = {
     { id: 'pk-smg-1', type: PICKUP_TYPES.SMG, x: 440, y: 680, respawnTime: 0 },
     { id: 'pk-smg-2', type: PICKUP_TYPES.SMG, x: 1940, y: 700, respawnTime: 0 },
     { id: 'pk-laser-1', type: PICKUP_TYPES.LASER, x: 580, y: 520, respawnTime: 0 },
+    { id: 'pk-rocket-1', type: PICKUP_TYPES.ROCKET, x: 1820, y: 520, respawnTime: 0 },
     { id: 'pk-pistol-1', type: PICKUP_TYPES.PISTOL, x: 1620, y: 520, respawnTime: 0 },
     { id: 'pk-rifle-1', type: PICKUP_TYPES.RIFLE, x: 1020, y: 840, respawnTime: 0 },
     { id: 'pk-health-1', type: PICKUP_TYPES.HEALTH, x: 300, y: 680, respawnTime: 0 },

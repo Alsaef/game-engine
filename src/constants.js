@@ -105,6 +105,20 @@ module.exports = {
       bulletColor: '#c084fc', // purple / magenta beam
       tracerLength: 40,
     },
+    ROCKET: {
+      type: 'ROCKET',
+      name: 'Rocket Launcher',
+      damage: 90,
+      bulletSpeed: 640,
+      fireInterval: 1100, // ms between shots
+      maxAmmo: 4,
+      reloadTime: 2500, // ms
+      spread: 0.01,
+      bulletLifetime: 3.0,
+      bulletColor: '#ef4444', // fiery rocket trail
+      tracerLength: 32,
+      radius: 135, // AoE blast radius
+    },
   },
 
   GRENADE_STATS: {
@@ -125,6 +139,7 @@ module.exports = {
     SHOTGUN: 'SHOTGUN',
     SNIPER: 'SNIPER',
     LASER: 'LASER',
+    ROCKET: 'ROCKET',
     PISTOL: 'PISTOL',
     AMMO: 'AMMO',
     GRENADE: 'GRENADE',

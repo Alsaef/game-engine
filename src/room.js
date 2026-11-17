@@ -275,8 +275,18 @@ class Room {
         length: weapon.tracerLength,
         weaponType: player.weapon,
         lifetime: weapon.bulletLifetime,
+        radius: weapon.radius || 0,
       });
     }
+
+    // Broadcast weapon fired event for gunshot audio & muzzle flash
+    this.broadcast('weapon_fired', {
+      playerId: socketId,
+      weapon: player.weapon,
+      x: spawnX,
+      y: spawnY,
+      aimAngle: player.aimAngle,
+    });
 
     // Auto-reload when clip reaches 0
     if (player.ammo <= 0) {
